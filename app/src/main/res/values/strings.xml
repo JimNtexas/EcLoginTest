@@ -20,4 +20,5 @@
     <string name="new_user_enter_email">Please enter a valid email</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="log_out">Log Out</string>
+    <string name="revoke_google">Revoke Google Access</string>
 </resources>

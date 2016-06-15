@@ -17,32 +17,41 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInResult;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.SignInButton;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-
-import org.greenrobot.eventbus.EventBus;
+import com.google.firebase.auth.GoogleAuthProvider;
 
 /**
  * A login screen that offers login via email/password.
  */
-public class LoginActivity extends AppCompatActivity {
+public class LoginActivity extends AppCompatActivity implements
+        GoogleApiClient.OnConnectionFailedListener {
 
     private static final String TAG = "Login";
     private static final int REQUEST_READ_CONTACTS = 0;
     private FirebaseAuth mAuth;
     private final int mMinPasswordLength = 6;
-
-
+    private GoogleApiClient mGoogleApiClient = null;
+    private static final int RC_SIGN_IN = 9001; //Magic number for Google sign in
 
     // UI references.
     private AutoCompleteTextView mEmailView;
     private EditText mPasswordView;
-  //  private View mProgressView;
- //   private View mLoginFormView;
     private FirebaseAuth.AuthStateListener mAuthListener;
+    Button mBtnRevokeGoogle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,10 +98,7 @@ public class LoginActivity extends AppCompatActivity {
                     // User is signed out
                     Log.d(TAG, "onAuthStateChanged:signed_out");
                 }
-
             }
-
-
         };
 
         Button resetPw = (Button)findViewById(R.id.pw_reset_btn);
@@ -113,6 +119,52 @@ public class LoginActivity extends AppCompatActivity {
                 createNewUser();
             }
         });
+
+        //configure google signin
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(getString(R.string.default_web_client_id))
+                .requestEmail()
+                .build();
+
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .enableAutoManage(this, this)
+                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+                .build();
+
+
+        //Google sign in button
+        SignInButton btnGoogle = (SignInButton)findViewById(R.id.login_with_google);
+        btnGoogle.setSize(SignInButton.SIZE_WIDE);
+        btnGoogle.setScopes(gso.getScopeArray());
+        btnGoogle.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                GoogleSignIn();
+            }
+        });
+
+        //Revoke Google Access button
+        mBtnRevokeGoogle = (Button)findViewById(R.id.btn_revoke_google);
+        mBtnRevokeGoogle.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                revokeGoogleAccess();
+            }
+        });
+
+        boolean signout = getIntent().getBooleanExtra(MainActivity.SIGN_OUT, false);
+        Log.d(TAG, String.valueOf(signout));
+        if(signout) {
+            if(mAuth != null) {
+                mAuth.signOut();
+
+            googleSignOut();
+                mBtnRevokeGoogle.setVisibility(View.VISIBLE);
+            }
+        } else {
+            mBtnRevokeGoogle.setVisibility(View.GONE);
+        }
+
     } // end onCreate
 
     private void gotoMainActivity() {
@@ -148,14 +200,12 @@ public class LoginActivity extends AppCompatActivity {
         if (mAuthListener != null) {
             mAuth.removeAuthStateListener(mAuthListener);
         }
-        EventBus.getDefault().unregister(this);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         mAuth.addAuthStateListener(mAuthListener);
-        EventBus.getDefault().register(this);
     }
 
 
@@ -181,8 +231,10 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         if(mAuth != null) {
+            //Firebase
             mAuth.signOut();
         }
+
         mAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
@@ -202,7 +254,30 @@ public class LoginActivity extends AppCompatActivity {
                 });
     }
 
+    private void googleSignOut() {
+        if(mGoogleApiClient.isConnected()) {
+            Auth.GoogleSignInApi.signOut(mGoogleApiClient).setResultCallback(
+                    new ResultCallback<Status>() {
+                        @Override
+                        public void onResult(@NonNull Status status) {
+                            Log.d(TAG, "Google logout status: " + status.getStatusMessage());
+                        }
+                    });
+        }
+    }
 
+    private void revokeGoogleAccess() {
+        Auth.GoogleSignInApi.revokeAccess(mGoogleApiClient).setResultCallback(
+                new ResultCallback<Status>() {
+                    @Override
+                    public void onResult(@NonNull Status status) {
+                        Log.d(TAG, "Google revoke status: " + status.isSuccess());
+                        if(status.isSuccess()) {
+                            mBtnRevokeGoogle.setVisibility(View.GONE);
+                        }
+                    }
+                });
+    }
 
     private void attemptLogin() {
 
@@ -283,22 +358,63 @@ public class LoginActivity extends AppCompatActivity {
         return password.length() > mMinPasswordLength;
     }
 
-    /*// This method will be called when a MessageEvent is posted
-    @Subscribe
-    public void onMessageEvent(MessageEvent event){
-       if(event.message == MessageEvent.LOG_OUT_MSG) {
-           Log.d(TAG, "Logout message received");
-           if(mAuth != null) {
-               mAuth.signOut();
-               mAuth = null;
-           }
-       }
-    }*/
+    private void GoogleSignIn() {
 
+        Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
+        startActivityForResult(signInIntent, RC_SIGN_IN);
+    }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
+        // Result returned from launching the Intent from GoogleSignInApi.getSignInIntent(...);
+        if (requestCode == RC_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            if (result.isSuccess()) {
+                // Google Sign In was successful, authenticate with Firebase
+                GoogleSignInAccount account = result.getSignInAccount();
+                firebaseAuthWithGoogle(account);
+            } else {
+                // Google Sign In failed, update UI appropriately
+                Log.e(TAG, "google sign in failed in onActivityResult");
+            }
+        }
+    }
 
+    private void firebaseAuthWithGoogle(GoogleSignInAccount acct) {
+        Log.d(TAG, "firebaseAuthWithGoogle:" + acct.getId());
+        AuthCredential credential = GoogleAuthProvider.getCredential(acct.getIdToken(), null);
+        mAuth.signInWithCredential(credential)
+                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        Log.d(TAG, "signInWithCredential:onComplete:" + task.isSuccessful());
 
+                        // If sign in fails, display a message to the user. If sign in succeeds
+                        // the auth state listener will be notified and logic to handle the
+                        // signed in user can be handled in the listener.
+                        if (!task.isSuccessful()) {
+                            Log.w(TAG, "signInWithCredential", task.getException());
+                            Toast.makeText(getApplicationContext(), "Authentication failed.",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                        // ...
+                    }
+                });
+    }
 
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
+    }
 }
+
+
+
+
+
+
+
+
 

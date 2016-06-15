@@ -10,9 +10,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
-import com.google.firebase.auth.FirebaseAuth;
-
 public class MainActivity extends AppCompatActivity {
+
+    public static final String SIGN_OUT = "signout";
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -22,11 +22,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        FirebaseAuth auth = FirebaseAuth.getInstance();
-        if(auth != null) {
-            auth.signOut();
-        }
+
         Intent intent = new Intent(this, LoginActivity.class);
+        intent.putExtra(SIGN_OUT, true);
         startActivity(intent);
         return true;
     }
