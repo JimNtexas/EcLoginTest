@@ -11,15 +11,10 @@
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:context="com.grayraven.eclogintest.MainActivity"
     tools:showIn="@layout/activity_main">
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="PojoConvert"
-        android:id="@+id/btn_pojo_convert"
-        android:layout_marginTop="60dp"
-        />
-
+<LinearLayout
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -36,4 +31,20 @@
         android:layout_below="@+id/txt_display_name"
         android:layout_alignEnd="@+id/btn_pojo_convert"
         android:layout_marginTop="20dp" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PojoConvert"
+        android:id="@+id/btn_pojo_convert"
+        android:layout_marginTop="60dp"
+        android:layout_gravity="center_horizontal" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Read Data"
+        android:id="@+id/btn_read_data"
+        android:layout_marginTop="20dp" />
+</LinearLayout>
 </RelativeLayout>

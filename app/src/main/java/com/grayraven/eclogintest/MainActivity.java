@@ -15,23 +15,25 @@ import android.widget.TextView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.gson.Gson;
 import com.grayraven.eclogintest.PoJos.Election;
 import com.grayraven.eclogintest.PoJos.State;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity  {
 
     public static final String SIGN_OUT = "signout";
     private DatabaseReference mDatabase;
     private static final String TAG = "Main";
     FirebaseAuth mAuth;
     FirebaseUser mUser;
+    ValueEventListener mListener;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -64,6 +66,13 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        Button btnRead = (Button)findViewById(R.id.btn_read_data);
+        btnRead.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+            }
+        });
+
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -75,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
 
         mAuth= FirebaseAuth.getInstance();
         mUser = mAuth.getCurrentUser();
-        String displayName = mUser.getDisplayName();
+        String displayName = mUser.getUid();
         if (displayName == null) {
             displayName = "none";
         }
@@ -86,6 +95,28 @@ public class MainActivity extends AppCompatActivity {
 
         ((TextView)findViewById(R.id.txt_display_name)).setText(displayName);
         ((TextView)findViewById(R.id.txt_email)).setText(email);
+
+         /* ---- Firebase data changes ----*/
+         mListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "Value event change cnt: " + dataSnapshot.getChildrenCount());
+                DataSnapshot elections = dataSnapshot.child("users/" + mUser.getUid() + "/elections");
+                Log.d(TAG, "election count: " + elections.getChildrenCount());
+                for(DataSnapshot  el: elections.getChildren()){
+                      Log.d(TAG, "key  :" +el.getKey());
+                      Election e = getElection(el.getValue().toString());
+                      Log.d(TAG, "Election:" + e.toString());
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        };
+
+        mDatabase.addValueEventListener(mListener);
 
 
     }
@@ -98,30 +129,36 @@ public class MainActivity extends AppCompatActivity {
         states.add(new State("DC", "DC", false, 3, 0, 0, 0));
         states.add(new State("TX", "Texas", false, 20, 0, 0, 0));
 
-        Election election96 = new Election("Historic 1996a", "Jim says Clinton beat Dole", 1996, states);
+        String title = mUser.getEmail() + "1996";
+        Election election96 = new Election(title, "first time through", 1996, states);
+        title = mUser.getEmail() + "2000";
+        Election election2000 = new Election(title, "second time through", 2000, states);
 
-         Gson gson = new Gson();
+        Log.d(TAG, "current user: " + mUser.getEmail());
+        String path = "users/" + mUser.getUid() + "/elections";
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+        mDatabase.child(path + "/1996").setValue(getJson(election96));
+        mDatabase.child(path + "/2000").setValue(getJson(election2000));
 
+        Log.d(TAG,"DONE");
+    }
+
+    private String getJson(Election election96) {
         String json = null;
+        Gson gson = new Gson();
         try {
             json = gson.toJson(election96,Election.class);
         } catch (Exception e) {
-            Log.e("TAG", e.getMessage());
+            Log.e("TAG", "Json error: " + e.getMessage());
+            return null;
         }
-        Log.d(TAG, json);
+        return json;
+    }
 
-
-        Log.d(TAG, "current user: " + mUser.getEmail());
-
-        mDatabase = FirebaseDatabase.getInstance().getReference();
-        String key = mDatabase.child("elections").push().getKey();
-        Map<String, Object> childUpdates = new HashMap<>();
-        String userId = "";
-        String path = "users/" + mUser.getUid() + "/elections";          //http://stackoverflow.com/questions/15079163/how-can-i-use-firebase-to-securely-share-presence-data-within-a-specific-group
-        childUpdates.put(path, json);
-        mDatabase.updateChildren(childUpdates);
-
-        Log.d(TAG,"DONE");
+    private Election getElection(String json) {
+        Gson gson = new Gson();
+        Election e = gson.fromJson(json, Election.class);
+        return e;
     }
 
 }
