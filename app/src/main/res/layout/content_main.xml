@@ -12,14 +12,28 @@
     tools:context="com.grayraven.eclogintest.MainActivity"
     tools:showIn="@layout/activity_main">
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PojoConvert"
+        android:id="@+id/btn_pojo_convert"
+        android:layout_marginTop="60dp"
+        />
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Hello World"
-        android:id="@+id/textView"
+        android:text="display name"
+        android:id="@+id/txt_display_name"
         android:layout_alignParentTop="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginStart="72dp"
-        android:layout_marginTop="79dp" />
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="email"
+        android:id="@+id/txt_email"
+        android:layout_below="@+id/txt_display_name"
+        android:layout_alignEnd="@+id/btn_pojo_convert"
+        android:layout_marginTop="20dp" />
 </RelativeLayout>

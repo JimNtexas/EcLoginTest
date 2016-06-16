@@ -27,6 +27,8 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
@@ -51,13 +53,11 @@ public class LoginActivity extends AppCompatActivity implements
     private AutoCompleteTextView mEmailView;
     private EditText mPasswordView;
     private FirebaseAuth.AuthStateListener mAuthListener;
-    Button mBtnRevokeGoogle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
 
         mAuth = FirebaseAuth.getInstance();
 
@@ -92,7 +92,7 @@ public class LoginActivity extends AppCompatActivity implements
                 if (user != null) {
                     // User is signed in
                     Log.d(TAG, "onAuthStateChanged:signed_in:" + user.getUid());
-                    gotoMainActivity();
+                    gotoMainActivity(user);
 
                 } else {
                     // User is signed out
@@ -144,8 +144,8 @@ public class LoginActivity extends AppCompatActivity implements
         });
 
         //Revoke Google Access button
-        mBtnRevokeGoogle = (Button)findViewById(R.id.btn_revoke_google);
-        mBtnRevokeGoogle.setOnClickListener(new OnClickListener() {
+        Button btnRevokeGoogle = (Button)findViewById(R.id.btn_revoke_google);
+        btnRevokeGoogle.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 revokeGoogleAccess();
@@ -157,17 +157,13 @@ public class LoginActivity extends AppCompatActivity implements
         if(signout) {
             if(mAuth != null) {
                 mAuth.signOut();
-
-            googleSignOut();
-                mBtnRevokeGoogle.setVisibility(View.VISIBLE);
             }
-        } else {
-            mBtnRevokeGoogle.setVisibility(View.GONE);
+            googleSignOut();
         }
 
     } // end onCreate
 
-    private void gotoMainActivity() {
+    private void gotoMainActivity(FirebaseUser user) {
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
     }
@@ -176,13 +172,26 @@ public class LoginActivity extends AppCompatActivity implements
     private void requestPwReset() {
         String email = mEmailView.getText().toString();
         Log.d(TAG, "sending pw reset request for: " + email);
-        Task<Void> task = mAuth.sendPasswordResetEmail(email);
-        Log.d("TAG", "requestPwReset result: " + (task.isSuccessful() == true) );
-        ShowDismissableSnackbar(getString(R.string.pw_reset_snack_msg), true);
+
+        mAuth.sendPasswordResetEmail(email)
+                .addOnSuccessListener(new OnSuccessListener() {
+                    @Override
+                    public void onSuccess(Object o) {
+                        Log.d(TAG, "Reset message success");
+                        showDismissableSnackbar(getApplicationContext().getString(R.string.pw_reset_snack_msg), true);
+                    }
+                }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                showDismissableSnackbar(getApplicationContext().getString(R.string.pw_reset_fail_msg), true);
+                Log.d(TAG, "Reset message success");
+            }
+
+    });
     }
 
 
-    void ShowDismissableSnackbar( String msg, boolean indef) {
+    void showDismissableSnackbar(String msg, boolean indef) {
         final Snackbar bar = Snackbar.make(findViewById(R.id.login_activity), msg, indef ? Snackbar.LENGTH_INDEFINITE : Snackbar.LENGTH_LONG);
         bar.setAction(R.string.dismiss, new OnClickListener() {
             @Override
@@ -218,14 +227,14 @@ public class LoginActivity extends AppCompatActivity implements
         String email = mEmailView.getText().toString();
         String password = mPasswordView.getText().toString();
         if(!isEmailValid(email)) {
-            ShowDismissableSnackbar(getString(R.string.new_user_enter_email), false);
+            showDismissableSnackbar(getString(R.string.new_user_enter_email), false);
             mEmailView.requestFocus();
             return;
         }
         if(!isPasswordValid(password)){
             String errorFormat = this.getString(R.string.error_invalid_password_fmt);
             String errorMsg = String.format(errorFormat, mMinPasswordLength);
-            ShowDismissableSnackbar(errorMsg, false);
+            showDismissableSnackbar(errorMsg, false);
             return;
 
         }
@@ -273,7 +282,9 @@ public class LoginActivity extends AppCompatActivity implements
                     public void onResult(@NonNull Status status) {
                         Log.d(TAG, "Google revoke status: " + status.isSuccess());
                         if(status.isSuccess()) {
-                            mBtnRevokeGoogle.setVisibility(View.GONE);
+                            showDismissableSnackbar(getString(R.string.revocation_success), false);
+                        } else {
+                            showDismissableSnackbar(getString(R.string.revocation_failure), false);
                         }
                     }
                 });

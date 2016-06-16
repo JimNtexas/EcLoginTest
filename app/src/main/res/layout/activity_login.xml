@@ -135,7 +135,7 @@
                 android:id="@+id/btn_revoke_google"
                 android:layout_gravity="center_horizontal"
                 android:textStyle="italic"
-                android:visibility="gone"
+                android:visibility="visible"
                 android:textSize="@dimen/notification_subtext_size"
                 />
 
